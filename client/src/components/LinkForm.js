@@ -1,20 +1,52 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
-const LinkForm = ({ onLinkCreated }) => {
-  const [formData, setFormData] = useState({
-    description: "",
-    iosBundleId: "",
-    iosAppStoreId: "",
-    iosDeepLink: "",
-    androidPackageName: "",
-    androidDeepLink: "",
-    webFallbackUrl: "",
-    socialTitle: "",
-    socialDescription: "",
-    socialImageUrl: "",
-  });
+const initialObject = {
+  // Initial empty state
+  description: "",
+  iosBundleId: "LA38X245GF.com.bitsmedia.muslimpro",
+  iosAppStoreId: "388389451",
+  iosDeepLink: "",
+  androidPackageName: "com.bitsmedia.android.muslimpro",
+  androidDeepLink: "",
+  webFallbackUrl: "",
+  socialTitle: "",
+  socialDescription: "",
+  socialImageUrl: "",
+};
+
+// Renamed prop for clarity, accepting linkToEdit (null if creating)
+const LinkForm = ({ onSave, linkToEdit = null }) => {
+  // Determine mode based on whether linkToEdit prop is provided
+  const isEditMode = Boolean(linkToEdit);
+
+  const [formData, setFormData] = useState(initialObject);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Effect to populate form when linkToEdit changes (for editing)
+  // or clear it if linkToEdit becomes null (switching from edit to create)
+  useEffect(() => {
+    if (isEditMode && linkToEdit) {
+      // Populate form with existing link data - ensure all fields exist
+      setFormData({
+        description: linkToEdit.description || "",
+        iosBundleId: linkToEdit.iosBundleId || "",
+        iosAppStoreId: linkToEdit.iosAppStoreId || "",
+        iosDeepLink: linkToEdit.iosDeepLink || "",
+        androidPackageName: linkToEdit.androidPackageName || "",
+        androidDeepLink: linkToEdit.androidDeepLink || "",
+        webFallbackUrl: linkToEdit.webFallbackUrl || "",
+        socialTitle: linkToEdit.socialTitle || "",
+        socialDescription: linkToEdit.socialDescription || "",
+        socialImageUrl: linkToEdit.socialImageUrl || "",
+      });
+    } else {
+      // Clear form if not in edit mode or linkToEdit is cleared
+      setFormData(initialObject);
+    }
+    // Reset error when mode changes
+    setError("");
+  }, [linkToEdit, isEditMode]); // Rerun effect if linkToEdit changes
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -31,10 +63,16 @@ const LinkForm = ({ onLinkCreated }) => {
       return;
     }
 
+    // --- Logic depends on mode ---
+    const method = isEditMode ? "PUT" : "POST"; // Or PATCH for partial updates
+    // Target specific link ID for updates, base endpoint for creates
+    const apiUrl = isEditMode
+      ? `/api/links/${linkToEdit._id}` // Assumes backend route uses _id
+      : "/api/links";
+
     try {
-      // Uses proxy configured in package.json (for CRA)
-      const response = await fetch("/api/links", {
-        method: "POST",
+      const response = await fetch(apiUrl, {
+        method: method, // Use dynamic method
         headers: {
           "Content-Type": "application/json",
         },
@@ -42,30 +80,34 @@ const LinkForm = ({ onLinkCreated }) => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        let errorData = { message: `HTTP error! status: ${response.status}` };
+        try {
+          errorData = await response.json();
+        } catch (jsonError) {
+          // Handle case where response is not valid JSON
+          console.error("Failed to parse error response JSON:", jsonError);
+        }
         throw new Error(
           errorData.message || `HTTP error! status: ${response.status}`,
         );
       }
 
-      const newLink = await response.json();
-      onLinkCreated(newLink); // Callback to update parent state
-      // Clear form
-      setFormData({
-        description: "",
-        iosBundleId: "",
-        iosAppStoreId: "",
-        iosDeepLink: "",
-        androidPackageName: "",
-        androidDeepLink: "",
-        webFallbackUrl: "",
-        socialTitle: "",
-        socialDescription: "",
-        socialImageUrl: "",
-      });
+      const savedLink = await response.json(); // Contains new or updated link
+
+      // Call the generalized save handler passed from parent
+      onSave(savedLink, isEditMode);
+
+      // Clear form only if creating a new link
+      if (!isEditMode) {
+        setFormData(initialObject);
+      }
+      // If editing, typically the parent component would handle closing the form/modal
+      // or indicating success, so we don't clear the form here.
     } catch (err) {
-      console.error("Failed to create link:", err);
-      setError(err.message || "Failed to create link.");
+      console.error(`Failed to ${isEditMode ? "update" : "create"} link:`, err);
+      setError(
+        err.message || `Failed to ${isEditMode ? "update" : "create"} link.`,
+      );
     } finally {
       setLoading(false);
     }
@@ -93,9 +135,16 @@ const LinkForm = ({ onLinkCreated }) => {
         marginBottom: "20px",
       }}
     >
-      <h2>Create New Dynamic Link</h2>
+      {/* Dynamically change title based on mode */}
+      <h2>{isEditMode ? "Edit Dynamic Link" : "Create New Dynamic Link"}</h2>
+      {isEditMode && linkToEdit && (
+        <p>
+          <small>Editing link with short code: {linkToEdit.shortCode}</small>
+        </p>
+      )}
       {error && <p style={{ color: "red" }}>{error}</p>}
 
+      {/* All the input fields remain the same structure */}
       <label style={labelStyle} htmlFor="description">
         Description (Optional)
       </label>
@@ -189,7 +238,6 @@ const LinkForm = ({ onLinkCreated }) => {
 
       <hr style={{ margin: "15px 0" }} />
       <h4>Social Media Preview (Optional)</h4>
-
       <label style={labelStyle} htmlFor="socialTitle">
         Preview Title
       </label>
@@ -202,7 +250,6 @@ const LinkForm = ({ onLinkCreated }) => {
         style={inputStyle}
         maxLength={70}
       />
-
       <label style={labelStyle} htmlFor="socialDescription">
         Preview Description
       </label>
@@ -215,7 +262,6 @@ const LinkForm = ({ onLinkCreated }) => {
         style={inputStyle}
         maxLength={200}
       />
-
       <label style={labelStyle} htmlFor="socialImageUrl">
         Preview Image URL
       </label>
@@ -233,8 +279,17 @@ const LinkForm = ({ onLinkCreated }) => {
         disabled={loading}
         style={{ padding: "10px 20px", marginTop: "10px" }}
       >
-        {loading ? "Creating..." : "Create Link"}
+        {/* Dynamically change button text based on mode */}
+        {loading
+          ? isEditMode
+            ? "Updating..."
+            : "Creating..."
+          : isEditMode
+            ? "Update Link"
+            : "Create Link"}
       </button>
+      {/* Optionally add a Cancel button for edit mode */}
+      {/* {isEditMode && <button type="button" onClick={onCancelEdit} style={{ marginLeft: '10px'}}>Cancel</button>} */}
     </form>
   );
 };

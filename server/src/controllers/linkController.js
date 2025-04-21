@@ -94,6 +94,97 @@ exports.createLink = async (req, res) => {
   }
 };
 
+// Update Link Controller Method ---
+exports.updateLink = async (req, res) => {
+  const { id } = req.params; // Get the MongoDB _id from the URL parameter
+  const cacheKeyPrefix = "link:"; // Define prefix for consistency
+
+  // Validate if the provided ID is a valid MongoDB ObjectId
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: "Invalid Link ID format." });
+  }
+
+  try {
+    // Find the existing link by its MongoDB _id
+    const linkToUpdate = await Link.findById(id);
+
+    if (!linkToUpdate) {
+      return res.status(404).json({ message: "Link not found." });
+    }
+
+    // --- Cache Key: Get shortCode BEFORE updating ---
+    // We need the shortCode to update/invalidate the correct cache entry
+    const shortCode = linkToUpdate.shortCode;
+    const cacheKey = `${cacheKeyPrefix}${shortCode}`;
+
+    // Destructure updated data from the request body
+    const {
+      description,
+      iosBundleId,
+      iosAppStoreId,
+      iosDeepLink,
+      androidPackageName,
+      androidDeepLink,
+      webFallbackUrl,
+      socialTitle,
+      socialDescription,
+      socialImageUrl,
+    } = req.body;
+
+    // Basic validation (ensure required fields are still present)
+    if (!webFallbackUrl) {
+      return res.status(400).json({ message: "Web fallback URL is required." });
+    }
+
+    // --- Update the document's fields ---
+    // Note: We generally don't allow changing the shortCode after creation
+    linkToUpdate.description = description;
+    linkToUpdate.iosBundleId = iosBundleId;
+    linkToUpdate.iosAppStoreId = iosAppStoreId;
+    linkToUpdate.iosDeepLink = iosDeepLink;
+    linkToUpdate.androidPackageName = androidPackageName;
+    linkToUpdate.androidDeepLink = androidDeepLink;
+    linkToUpdate.webFallbackUrl = webFallbackUrl;
+    linkToUpdate.socialTitle = socialTitle;
+    linkToUpdate.socialDescription = socialDescription;
+    linkToUpdate.socialImageUrl = socialImageUrl;
+    // Mongoose default timestamps will update `updatedAt` automatically if enabled in schema
+
+    // Save the updated document to MongoDB (runs validations)
+    const updatedLink = await linkToUpdate.save();
+
+    // --- IMPORTANT: Update Redis Cache ---
+    // Update the cache with the new data or delete the old entry
+    try {
+      await redis.set(
+        cacheKey,
+        JSON.stringify(updatedLink), // Store the newly updated link data
+        "EX",
+        CACHE_TTL,
+      );
+      console.log(`[Cache UPDATE] Link ${shortCode} updated in cache.`);
+    } catch (cacheError) {
+      console.error(
+        `[Cache Error] Failed to update cache for link ${shortCode}:`,
+        cacheError,
+      );
+      // Decide if failure to update cache should be a critical error or just logged
+    }
+
+    // Send back the updated link object
+    res.status(200).json(updatedLink);
+  } catch (error) {
+    console.error(`Error updating link ${id}:`, error);
+    // Handle potential validation errors from Mongoose save()
+    if (error.name === "ValidationError") {
+      return res
+        .status(400)
+        .json({ message: "Validation Error", errors: error.errors });
+    }
+    res.status(500).json({ message: "Server error updating link." });
+  }
+};
+
 // Get all links (for Dashboard)
 exports.getLinks = async (req, res) => {
   try {
