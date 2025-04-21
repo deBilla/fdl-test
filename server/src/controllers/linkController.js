@@ -339,8 +339,9 @@ function sendUniversalInterstitial(res, linkConfig, deviceOS) {
   // Determine which platform-specific links to use
   if (deviceOS === "ios") {
     deepLink = linkConfig.iosDeepLink || null;
+    // Use iTunes URL format for better reliability
     appStoreUrl = linkConfig.iosAppStoreId
-      ? `https://apps.apple.com/app/id${linkConfig.iosAppStoreId}`
+      ? `https://itunes.apple.com/app/id${linkConfig.iosAppStoreId}`
       : webFallback;
   } else if (deviceOS === "android") {
     deepLink = linkConfig.androidDeepLink || null;
@@ -375,12 +376,17 @@ function sendUniversalInterstitial(res, linkConfig, deviceOS) {
     }
   }
 
-  // Build the HTML response with a reliable deep linking script
+  // Build the HTML response with improved deep linking script
   const html = `<!DOCTYPE html>
 <html>
 <head>
   <title>Opening App</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  ${
+    deviceOS === "ios" && linkConfig.iosAppStoreId
+      ? `<meta name="apple-itunes-app" content="app-id=${linkConfig.iosAppStoreId}${linkConfig.iosDeepLink ? ", app-argument=" + encodeURIComponent(linkConfig.iosDeepLink) : ""}">`
+      : ""
+  }
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -499,6 +505,22 @@ function sendUniversalInterstitial(res, linkConfig, deviceOS) {
         // Mark that we've attempted to open the app
         attemptedToOpenApp = true;
 
+        // Show the countdown
+        document.getElementById('timeout-message').classList.remove('hidden');
+
+        // Start the countdown timer
+        var countdown = 3;
+        document.getElementById('countdown').textContent = countdown;
+
+        var countdownInterval = setInterval(function() {
+          countdown--;
+          if (countdown <= 0) {
+            clearInterval(countdownInterval);
+          } else {
+            document.getElementById('countdown').textContent = countdown;
+          }
+        }, 1000);
+
         // For Android: Use Intent URL if available (this handles its own fallback)
         if ("${deviceOS}" === "android" && "${intentUrl}" && !navigator.userAgent.includes('Firefox')) {
           console.log('Trying Android Intent URL');
@@ -507,42 +529,59 @@ function sendUniversalInterstitial(res, linkConfig, deviceOS) {
           return;
         }
 
-        // For iOS or Android without intent URL: try direct deep link
+        // For iOS: Try the iframe approach first (more reliable on iOS)
+        if ("${deviceOS}" === "ios" && "${deepLink}") {
+          try {
+            console.log('Trying iOS iframe approach');
+            var appLaunchIframe = document.createElement('iframe');
+            appLaunchIframe.style.border = 'none';
+            appLaunchIframe.style.width = '1px';
+            appLaunchIframe.style.height = '1px';
+            appLaunchIframe.style.position = 'absolute';
+            appLaunchIframe.style.top = '-100px';
+            appLaunchIframe.src = "${deepLink}";
+            document.body.appendChild(appLaunchIframe);
+
+            // Remove the iframe after a moment
+            setTimeout(function() {
+              if (appLaunchIframe && appLaunchIframe.parentNode) {
+                document.body.removeChild(appLaunchIframe);
+              }
+            }, 100);
+          } catch (e) {
+            console.error('Error with iframe approach:', e);
+          }
+        }
+
+        // For all devices: Also try direct deep link as backup
         if ("${deepLink}") {
           console.log('Trying direct deep link:', "${deepLink}");
-
-          // Show the countdown
-          document.getElementById('timeout-message').classList.remove('hidden');
-
-          // Start the countdown timer
-          var countdown = 3;
-          document.getElementById('countdown').textContent = countdown;
-
-          var countdownInterval = setInterval(function() {
-            countdown--;
-            if (countdown <= 0) {
-              clearInterval(countdownInterval);
-            } else {
-              document.getElementById('countdown').textContent = countdown;
-            }
-          }, 1000);
-
-          // Try to open the app
-          window.location.href = "${deepLink}";
-
-          // Set a timeout for the store fallback
-          // This won't execute if the app opens due to the visibility/blur event handlers
-          window.appOpenTimeoutId = setTimeout(function() {
-            if (!appOpened) {
-              console.log('App did not open, redirecting to store');
-              redirectToStore();
-            }
-          }, 3000); // 3 seconds should be enough to determine if app opened
+          try {
+            window.location.href = "${deepLink}";
+          } catch (e) {
+            console.error('Error opening deep link:', e);
+            // Redirect immediately if direct link causes error
+            redirectToStore();
+            return;
+          }
         } else {
           // No deep link available, go directly to store
           console.log('No deep link available, going to store directly');
           redirectToStore();
+          return;
         }
+
+        // Set different timeout for iOS vs Android
+        var redirectDelay = "${deviceOS}" === "ios" ? 2000 : 3000;
+
+        // Set a timeout for the store fallback
+        // This won't execute if the app opens due to the visibility/blur event handlers
+        window.appOpenTimeoutId = setTimeout(function() {
+          if (!appOpened) {
+            console.log('App did not open, redirecting to store');
+            redirectToStore();
+          }
+        }, redirectDelay);
       }
 
       // Initialize deep linking process
@@ -551,8 +590,7 @@ function sendUniversalInterstitial(res, linkConfig, deviceOS) {
 
         // Add click handler to manual button
         document.getElementById('manual-button').addEventListener('click', function(e) {
-          e.preventDefault();
-          redirectToStore();
+          // Allow default behavior here so the link works normally
         });
 
         // Start the deep linking process after a short delay
