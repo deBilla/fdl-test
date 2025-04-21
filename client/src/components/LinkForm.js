@@ -33,7 +33,7 @@ const LinkForm = ({ onLinkCreated }) => {
 
     try {
       // Uses proxy configured in package.json (for CRA)
-      const response = await fetch(`/api/links`, {
+      const response = await fetch("/api/links", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
