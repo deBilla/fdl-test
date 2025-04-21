@@ -45,9 +45,8 @@ services:
       - ./client/src:/app/src # Mount local src for development hot-reloading
       - ./client/public:/app/public
     environment:
-      - WDS_SOCKET_PORT=0
-      - WATCHPACK_POLLING=true
-      - REACT_APP_API_URL=http://server:5001/
+      - WDS_SOCKET_PORT=0 # Often needed for React hot-reloading in Docker
+      - WATCHPACK_POLLING=true # Helps with file watching in some Docker setups
     depends_on:
       - server # Doesn't strictly depend, but often started together
     # Command depends on how you run your React app (e.g., npm start)

@@ -12,9 +12,7 @@ function App() {
     setError("");
     try {
       // Uses proxy
-      const response = await fetch(
-        `${process.env.REACT_APP_API_URL}/api/links`,
-      );
+      const response = await fetch(`/api/links`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
