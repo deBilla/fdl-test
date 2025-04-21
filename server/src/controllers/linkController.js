@@ -496,7 +496,18 @@ function sendUniversalInterstitial(res, linkConfig, deviceOS) {
         if (!hasRedirected && !appOpened) {
           console.log('Redirecting to store');
           hasRedirected = true;
-          window.location.href = "${appStoreUrl}";
+
+          // Use form submission for iOS to avoid protocol handling issues
+          if ("${deviceOS}" === "ios") {
+            var form = document.createElement('form');
+            form.method = 'GET';
+            form.action = "${appStoreUrl}";
+            document.body.appendChild(form);
+            form.submit();
+          } else {
+            // Direct navigation for Android
+            window.location.href = "${appStoreUrl}";
+          }
         }
       }
 
