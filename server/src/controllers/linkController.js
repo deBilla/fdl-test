@@ -341,7 +341,7 @@ function sendUniversalInterstitial(res, linkConfig, deviceOS) {
     deepLink = linkConfig.iosDeepLink || null;
     // Use iTunes URL format for better reliability
     appStoreUrl = linkConfig.iosAppStoreId
-      ? `https://itunes.apple.com/app/id${linkConfig.iosAppStoreId}`
+      ? `https://apps.apple.com/app/id${linkConfig.iosAppStoreId}`
       : webFallback;
   } else if (deviceOS === "android") {
     deepLink = linkConfig.androidDeepLink || null;
