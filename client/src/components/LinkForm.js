@@ -33,13 +33,16 @@ const LinkForm = ({ onLinkCreated }) => {
 
     try {
       // Uses proxy configured in package.json (for CRA)
-      const response = await fetch("http://localhost:5001/api/links", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `${process.env.REACT_APP_API_URL}/api/links`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(formData),
         },
-        body: JSON.stringify(formData),
-      });
+      );
 
       if (!response.ok) {
         const errorData = await response.json();
