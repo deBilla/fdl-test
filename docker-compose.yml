@@ -1,0 +1,57 @@
+version: "3.8"
+services:
+  mongo:
+    image: mongo:latest
+    container_name: dynamiclinks-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db # Persist MongoDB data
+
+  redis:
+    image: redis:latest
+    container_name: dynamiclinks-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data # Persist Redis data (optional)
+
+  server: # Node.js backend service
+    build: ./server # Path to the server directory with Dockerfile (or specify image)
+    container_name: dynamiclinks-server
+    ports:
+      - "5001:5001" # Map host port 5001 to container port 5001
+    depends_on: # Ensure mongo and redis start before the server
+      - mongo
+      - redis
+    environment: # Pass environment variables to the container
+      - PORT=5001
+      - MONGO_URI=mongodb://mongo:27017/dynamic_links # Use service name 'mongo'
+      - REDIS_URL=redis://redis:6379 # Use service name 'redis'
+      - CLIENT_URL=http://localhost:3000 # Allow React dev server access
+      - CACHE_TTL_SECONDS=3600
+    volumes:
+      - ./server/src:/app/src # Mount local src for development hot-reloading
+      # Note: You might need a Dockerfile in ./server for this build context
+      # A simple Node Dockerfile would copy package.json, install deps, copy src, expose port, and run node.
+    command: npm run dev # Use nodemon for development
+
+  client: # React frontend service
+    build: ./client # Path to the client directory with Dockerfile (or specify image)
+    container_name: dynamiclinks-client
+    ports:
+      - "3000:3000" # Map host port 3000 to container port 3000 (React default)
+    volumes:
+      - ./client/src:/app/src # Mount local src for development hot-reloading
+      - ./client/public:/app/public
+    environment:
+      - WDS_SOCKET_PORT=0 # Often needed for React hot-reloading in Docker
+      - WATCHPACK_POLLING=true # Helps with file watching in some Docker setups
+    depends_on:
+      - server # Doesn't strictly depend, but often started together
+    # Command depends on how you run your React app (e.g., npm start)
+    # Note: Needs a Dockerfile in ./client as well.
+
+volumes: # Define persistent volumes
+  mongo-data:
+  redis-data:
