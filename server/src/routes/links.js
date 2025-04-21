@@ -6,7 +6,7 @@ const router = express.Router();
 // === API Routes (for Dashboard) ===
 // Base path /api/links (defined in server.js)
 router.post("/", linkController.createLink); // POST /api/links
-router.put("/", linkController.updateLink); // PUT /api/links
+router.put("/:id", linkController.updateLink); // PUT /api/links
 router.get("/", linkController.getLinks); // GET /api/links
 
 // === Deferred Deep Link Check Route ===
