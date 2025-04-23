@@ -48,7 +48,7 @@ services:
     environment:
       - WDS_SOCKET_PORT=0 # Often needed for React hot-reloading in Docker
       - WATCHPACK_POLLING=true # Helps with file watching in some Docker setups
-      - REACT_APP_API_BASE_URL="https://link.muslimpro.com/api/"
+      - REACT_APP_API_BASE_URL=https://link.muslimpro.com/api/
     depends_on:
       - server # Doesn't strictly depend, but often started together
   nginx: # Nginx reverse proxy
