@@ -58,8 +58,8 @@ services:
       - "443:443"
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf # Custom Nginx config
-      - certbot_etc:/etc/letsencrypt
-      - certbot_www:/var/www/certbot
+      - certbot_etc:/etc/letsencrypt:rw
+      - certbot_www:/var/www/certbot:rw
     depends_on:
       - client
       - server
