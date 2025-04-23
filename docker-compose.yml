@@ -29,7 +29,7 @@ services:
       - PORT=5001
       - MONGO_URI=mongodb://mongo:27017/dynamic_links # Use service name 'mongo'
       - REDIS_URL=redis://redis:6379 # Use service name 'redis'
-      - CLIENT_URL=https://localhost:3000 # Allow React dev server access
+      - CLIENT_URL=https://link.muslimpro.com # Allow React dev server access
       - CACHE_TTL_SECONDS=3600
     volumes:
       - ./server/src:/app/src # Mount local src for development hot-reloading
@@ -58,11 +58,23 @@ services:
       - "443:443"
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf # Custom Nginx config
-      - ./nginx/ssl/dev.crt:/etc/nginx/ssl/dev.crt:ro # Mount certificate
-      - ./nginx/ssl/dev.key:/etc/nginx/ssl/dev.key:ro # Mount private key
+      - certbot_etc:/etc/letsencrypt:ro
+      - certbot_www:/var/www/certbot:ro
     depends_on:
       - client
       - server
+
+  certbot:
+    image: certbot/certbot # Use official certbot image
+    container_name: dynamiclinks-certbot
+    volumes:
+      # Mount shared volumes (read-write needed for Certbot)
+      - certbot_etc:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    # Keep container running - renewal is handled by executing commands
+    # Use 'depends_on: [nginx]' if your entrypoint needs Nginx running first
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do sleep 1h & wait $${!}; done;'"
+
 volumes: # Define persistent volumes
   mongo-data:
   redis-data:
