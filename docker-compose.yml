@@ -73,7 +73,7 @@ services:
       - certbot_www:/var/www/certbot
     # Keep container running - renewal is handled by executing commands
     # Use 'depends_on: [nginx]' if your entrypoint needs Nginx running first
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do sleep 1h & wait $${!}; done;'"
+    entrypoint: "sh -c 'sleep infinity'"
 
 volumes: # Define persistent volumes
   mongo-data:
