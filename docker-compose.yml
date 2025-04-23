@@ -57,6 +57,8 @@ services:
       - "80:80" # Expose port 80 to the host
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf # Custom Nginx config
+      - ./nginx/ssl/dev.crt:/etc/nginx/ssl/dev.crt:ro # Mount certificate
+      - ./nginx/ssl/dev.key:/etc/nginx/ssl/dev.key:ro # Mount private key
     depends_on:
       - client
       - server
