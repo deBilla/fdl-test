@@ -78,3 +78,5 @@ services:
 volumes: # Define persistent volumes
   mongo-data:
   redis-data:
+  certbot_etc:
+  certbot_www:
